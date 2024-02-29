@@ -12,10 +12,15 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.AxisBase;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IAxisValueFormatter;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 import org.osmdroid.api.IMapController;
@@ -50,12 +55,21 @@ public class ProcessData {
     private Date today;
     private File mainFile;
 
+    ArrayList<Entry> outsideValues = new ArrayList<>();
+    ArrayList<Entry> insideValues = new ArrayList<>();
+    ArrayList<Entry> pressurevalues = new ArrayList<>();
+
     ArrayList<String> xAxisValueList = new ArrayList<>();
 
     public ProcessData(MainActivity activity, LineChart chart, MapView map) {
         this.chart = chart;
         this.activity = activity;
         this.map = map;
+
+        //Chart stuff
+        prepareChart();
+
+        //Map stuff
         requestPermissionsIfNecessary(new String[]{
                 // if you need to show the current location, uncomment the line below
                 // Manifest.permission.ACCESS_FINE_LOCATION,
@@ -83,6 +97,39 @@ public class ProcessData {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    private void prepareChart() {
+        ArrayList<ILineDataSet> dataSets = new ArrayList<>();
+        LineDataSet set1 = new LineDataSet(outsideValues, "outside");
+        LineDataSet set2 = new LineDataSet(insideValues, "inside");
+        LineDataSet set3 = new LineDataSet(pressurevalues, "pressure");
+
+        set1.setLineWidth(2.5f);
+        set1.setColor(Color.BLUE);
+        set1.setCircleColor(Color.BLACK);
+        // line thickness and point size
+        //set1.setCircleRadius(3f);
+        //set1.setDrawCircleHole(false);
+
+        set2.setLineWidth(2.5f);
+        set2.setColor(Color.RED);
+        set2.setCircleColor(Color.BLACK);
+
+        set3.setLineWidth(2.5f);
+        set3.setColor(Color.GREEN);
+        set3.setAxisDependency(YAxis.AxisDependency.RIGHT);
+        set3.setCircleColor(Color.BLACK);
+
+
+
+        dataSets.add(set1); // add the data sets
+        dataSets.add(set2);
+        dataSets.add(set3);
+        // create a data object with the data sets
+        LineData data = new LineData(dataSets);
+        // set data
+        chart.setData(data);
     }
 
     private void onSaveDataPush() throws IOException {
@@ -244,6 +291,7 @@ public class ProcessData {
         String time = newData[2];
         switch (type) {
             case "pressure":
+                addPressureData(chart, val, time);
                 break;
             case "temp":
                 Log.d("Data", val);
@@ -256,6 +304,24 @@ public class ProcessData {
                 panToPos(val);
                 break;
         }
+    }
+
+    private void addPressureData(LineChart chart, String receivedData, String time) {
+        float myTime = convertTimeToSeconds(time);
+        Log.d("Time", String.valueOf(myTime));
+        float pressure = Float.parseFloat(receivedData);
+
+        // Get or create the line chart data
+        LineData data = chart.getData();
+        // Get the existing datasets from the LineData
+        data.addEntry(new Entry(myTime, pressure), 2);
+
+        data.notifyDataChanged();
+
+        // let the chart know it's data has changed
+        chart.notifyDataSetChanged();
+        chart.invalidate();
+
     }
 
     private void addTempData(LineChart chart, String receivedData, String time) {
@@ -298,6 +364,7 @@ public class ProcessData {
             tempDataSets.add(insideTemp);
             LineData tempLineData = new LineData(tempDataSets);
 
+
             chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
 
             // Set the data for the chart and redraw
@@ -314,10 +381,11 @@ public class ProcessData {
             chart.notifyDataSetChanged();
 
 
-            //chart.setVisibleXRangeMaximum(30);
-
+            chart.setVisibleXRangeMaximum(30);
             chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
-            //chart.moveViewToX(data.getEntryCount());
+
+            chart.moveViewToX(data.getEntryCount());
+            chart.getXAxis().setLabelCount(30, true);
             chart.invalidate();
         }
     }

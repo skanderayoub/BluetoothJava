@@ -27,6 +27,7 @@ import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.LineDrawer;
 import org.osmdroid.views.overlay.Marker;
 
 import java.io.BufferedReader;
@@ -56,6 +57,19 @@ public class MainActivity extends AppCompatActivity {
         map.setTileSource(TileSourceFactory.MAPNIK);
 
         chart = findViewById(R.id.chart2);
+        chart.getDescription().setEnabled(false);
+
+        // enable touch gestures
+        chart.setTouchEnabled(true);
+        chart.setDrawGridBackground(false);
+        // enable scaling and dragging
+        chart.setDragEnabled(true);
+        chart.setScaleEnabled(true);
+        //chart.setScaleXEnabled(true);
+        chart.setScaleYEnabled(true);
+
+        // force pinch zoom along both axis
+        //chart.setPinchZoom(true);
 
         processData = new ProcessData(this, chart, map);
         btService = new BluetoothService(this, processData);
