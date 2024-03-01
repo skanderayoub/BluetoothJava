@@ -4,8 +4,10 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 
 import androidx.core.app.ActivityCompat;
@@ -43,6 +45,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ProcessData {
 
@@ -51,9 +56,11 @@ public class ProcessData {
     private IMapController mapController;
     private Marker marker;
     private MainActivity activity;
-    private StringBuilder csvData;
+    private StringBuilder csvData = new StringBuilder();
     private Date today;
     private File mainFile;
+    private List<DataPoint> dataPoints = new ArrayList<>();
+    private Map<String, DataPoint> dataPointsMap = new HashMap<>(); // Use HashMap or other Map implementation
 
     ArrayList<Entry> outsideValues = new ArrayList<>();
     ArrayList<Entry> insideValues = new ArrayList<>();
@@ -97,6 +104,15 @@ public class ProcessData {
                 throw new RuntimeException(e);
             }
         });
+
+
+        //saveButton.setOnClickListener(view -> {
+        //    try {
+        //        onSaveDataPush();
+        //    } catch (IOException e) {
+        //        throw new RuntimeException(e);
+        //    }
+        //});
     }
 
     private void prepareChart() {
@@ -140,37 +156,52 @@ public class ProcessData {
                 + File.separator + formattedDate + ".csv";
         // Create a File object
         File file = new File(path);
-        // Check if the file exists
-        if (file.exists()) {
-            // Load the file content using your preferred method (e.g., BufferedReader)
-            // ...
-            Log.d("FileCheck", "File exists: " + path);
-            mainFile = file;
-            String content = readFile(path);
-            Log.d("Content", content);
-        } else {
-            // Create the file if it doesn't exist
-            try {
-                Log.d("FileCheck", "File does not exist " + path);
-                csvData = new StringBuilder();
-                csvData.append("Time,Inside Temp,Outside Temp\n");
-                csvData.append("Time,Inside Temp,Outside Temp\n");
-                csvData.append("Time,Inside Temp,Outside Temp\n");
-                csvData.append("Time,Inside Temp,Outside Temp\n");
-                try {
-                    FileOutputStream outputStream = new FileOutputStream(file);
-                    OutputStreamWriter writer = new OutputStreamWriter(outputStream);
-                    writer.write(csvData.toString());
-                    writer.close();
-                    outputStream.close();
-                    Log.d("CSV", "Data saved to file: " + file.getAbsolutePath());
-                    mainFile = file;
-                } catch (IOException e) {
-                    Log.e("CSV", "Error saving data to file", e);
-                }
-            } catch (Exception e) {
-                Log.e("FileCheck", "Error creating file: " + e.getMessage());
+
+        // Convert Map entries to a list of DataPoints
+        List<DataPoint> sortedDataPoints = new ArrayList<>(dataPointsMap.values());
+
+        // Sort the list by time
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            sortedDataPoints.sort((dataPoint1, dataPoint2) -> dataPoint1.time.compareTo(dataPoint2.time));
+        }
+
+        // Iterate through the sorted list and append data to the file
+        for (DataPoint dataPoint : sortedDataPoints) {
+            csvData.append(dataPoint.time).append(",").
+                    append(dataPoint.out_temp).append(",").
+                    append(dataPoint.in_temp).append(",").
+                    append(dataPoint.lat).append(",").
+                    append(dataPoint.longi).append(",").
+                    append(dataPoint.hum).append(",").
+                    append(dataPoint.pressure).append("\n");
+        }
+
+        addData(file);
+
+    }
+
+    private void addData(File file) {
+        Log.d("File", String.valueOf(file.exists()));
+        if (!file.exists()) {
+            File parentDir = file.getParentFile();
+            if (!parentDir.exists()) {
+                // Create the parent directory and any intermediate directories
+                parentDir.mkdirs(); // Creates all non-existent parent directories
             }
+            csvData.insert(0, "time,outside_temp,inside_temp,latitude,longitude,hum,pressure\n");
+        }
+
+        try {
+            FileOutputStream outputStream = new FileOutputStream(file, true);
+            OutputStreamWriter writer = new OutputStreamWriter(outputStream);
+            writer.append(csvData.toString());
+            writer.close();
+            outputStream.close();
+            dataPoints.clear();
+            dataPointsMap.clear();
+            csvData.setLength(0);
+        } catch (IOException e) {
+            Log.e("CSV", "Error saving data to file", e);
         }
     }
 
@@ -284,42 +315,94 @@ public class ProcessData {
         }
     }
 
+    public class DataPoint {
+        String time;
+        String out_temp;
+        String in_temp;
+        String lat;
+        String longi;
+        String hum;
+        String pressure;
+    }
+
     public void processData(String data) {
         String[] newData = data.trim().split(";");
         String type = newData[0];
         String val = newData[1];
         String time = newData[2];
+
+        DataPoint dataPoint = dataPointsMap.get(time);
+
+        if (dataPoint == null) {
+            // Create a new data point if none exists for this timestamp
+            dataPoint = new DataPoint();
+            dataPoint.time = time;
+            dataPointsMap.put(time, dataPoint);
+        }
+
         switch (type) {
             case "pressure":
-                addPressureData(chart, val, time);
+                addData(chart, val, time, 2);
+                //addPressureData(chart, val, time);
+                dataPoint.pressure = val;
                 break;
             case "temp":
-                Log.d("Data", val);
                 //chart2.clear();
-                addTempData(chart, val, time);
+                String[] temp = val.split(",");
+                String outsideVal = temp[1];
+                String insideVal = temp[0];
+                addData(chart, outsideVal, time, 0);
+                addData(chart, insideVal, time, 1);
+                dataPoint.out_temp = outsideVal;
+                dataPoint.in_temp = outsideVal;
+                //addTempData(chart, val, time);
                 break;
             case "hum":
+                dataPoint.hum = val;
                 break;
             case "GPS":
                 panToPos(val);
+                String[] GPS = val.split(",");
+                String lat = GPS[1];
+                String longi = GPS[0];
+                dataPoint.lat = lat;
+                dataPoint.longi = longi;
                 break;
         }
     }
 
+    private void addData(LineChart chart, String receivedData, String time, int idx) {
+        float myTime = convertTimeToSeconds(time);
+        float pressure = Float.parseFloat(receivedData);
+        xAxisValueList.add(time);
+
+        // Get or create the line chart data
+        LineData data = chart.getData();
+        // Get the existing datasets from the LineData
+        data.addEntry(new Entry(myTime, pressure), idx);
+        data.notifyDataChanged();
+        // let the chart know it's data has changed
+        chart.notifyDataSetChanged();
+        //chart.setVisibleXRangeMaximum(30);
+        //chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
+        //chart.moveViewToX(data.getDataSetByIndex(0).getEntryCount());
+        chart.invalidate();
+    }
+
     private void addPressureData(LineChart chart, String receivedData, String time) {
         float myTime = convertTimeToSeconds(time);
-        Log.d("Time", String.valueOf(myTime));
         float pressure = Float.parseFloat(receivedData);
 
         // Get or create the line chart data
         LineData data = chart.getData();
         // Get the existing datasets from the LineData
         data.addEntry(new Entry(myTime, pressure), 2);
-
         data.notifyDataChanged();
-
         // let the chart know it's data has changed
         chart.notifyDataSetChanged();
+        chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
+        chart.setVisibleXRangeMaximum(30);
+        chart.moveViewToX(data.getEntryCount());
         chart.invalidate();
 
     }
@@ -328,66 +411,24 @@ public class ProcessData {
         // Split the received data into two floats (assuming comma-separated format)
         xAxisValueList.add(time);
         float myTime = convertTimeToSeconds(time);
-        Log.d("Time", String.valueOf(myTime));
         String[] temp = receivedData.split(",");
         float outsideVal = Float.parseFloat(temp[1]);
         float insideVal = Float.parseFloat(temp[0]);
-
         // Get or create the line chart data
         LineData data = chart.getData();
+        // Get the existing datasets from the LineData
+        data.addEntry(new Entry(myTime, outsideVal), 0);
+        data.addEntry(new Entry(myTime, insideVal), 1);
+        data.notifyDataChanged();
 
-        // Create entries with the formatted x-axis label and temperature as y-value
-        if (data == null) {
-            // Initialize data structures if data is not set yet
-            ArrayList<Entry> outsideValues = new ArrayList<>();
-            ArrayList<Entry> insideValues = new ArrayList<>();
-
-
-            outsideValues.add(new Entry(myTime, outsideVal));
-            insideValues.add(new Entry(myTime, insideVal));
-
-            // Create LineDataSets for outside and inside temperatures
-            LineDataSet outsideTemp = new LineDataSet(outsideValues, "Outside Temp");
-            LineDataSet insideTemp = new LineDataSet(insideValues, "Inside Temp");
-
-            // Add initial entries (assuming x = 0 for both)
-
-            // Set line properties (color and width)
-            outsideTemp.setLineWidth(2.5f);
-            outsideTemp.setColor(Color.BLUE);
-            insideTemp.setLineWidth(2.5f);
-            insideTemp.setColor(Color.RED);
-
-            // Add both datasets to a new LineData object
-            ArrayList<ILineDataSet> tempDataSets = new ArrayList<>();
-            tempDataSets.add(outsideTemp);
-            tempDataSets.add(insideTemp);
-            LineData tempLineData = new LineData(tempDataSets);
+        // let the chart know it's data has changed
+        chart.notifyDataSetChanged();
 
 
-            chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
-
-            // Set the data for the chart and redraw
-            chart.setData(tempLineData);
-            chart.invalidate();
-        } else {
-            // Get the existing datasets from the LineData
-            data.addEntry(new Entry(myTime, outsideVal), 0);
-            data.addEntry(new Entry(myTime, insideVal), 1);
-
-            data.notifyDataChanged();
-
-            // let the chart know it's data has changed
-            chart.notifyDataSetChanged();
-
-
-            chart.setVisibleXRangeMaximum(30);
-            chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
-
-            chart.moveViewToX(data.getEntryCount());
-            chart.getXAxis().setLabelCount(30, true);
-            chart.invalidate();
-        }
+        chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
+        chart.setVisibleXRangeMaximum(30);
+        chart.moveViewToX(data.getEntryCount());
+        chart.invalidate();
     }
 
     private static int convertTimeToSeconds(String timeStr) {
