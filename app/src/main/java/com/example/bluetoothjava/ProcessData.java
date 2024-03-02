@@ -1,14 +1,22 @@
 package com.example.bluetoothjava;
 
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -30,6 +38,8 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Polyline;
+import org.osmdroid.views.overlay.ScaleBarOverlay;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -53,6 +63,8 @@ public class ProcessData {
 
     private LineChart chart;
     private MapView map;
+    private List<GeoPoint> geoPoints = new ArrayList<>();
+    Polyline line = new Polyline();
     private IMapController mapController;
     private Marker marker;
     private MainActivity activity;
@@ -62,16 +74,18 @@ public class ProcessData {
     private List<DataPoint> dataPoints = new ArrayList<>();
     private Map<String, DataPoint> dataPointsMap = new HashMap<>(); // Use HashMap or other Map implementation
 
+    private TextView humidityText;
+
     ArrayList<Entry> outsideValues = new ArrayList<>();
     ArrayList<Entry> insideValues = new ArrayList<>();
     ArrayList<Entry> pressurevalues = new ArrayList<>();
-
-    ArrayList<String> xAxisValueList = new ArrayList<>();
 
     public ProcessData(MainActivity activity, LineChart chart, MapView map) {
         this.chart = chart;
         this.activity = activity;
         this.map = map;
+
+        humidityText = activity.findViewById(R.id.humidity);
 
         //Chart stuff
         prepareChart();
@@ -86,15 +100,6 @@ public class ProcessData {
         prepareMap();
 
         today = new Date();
-        // SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MM/dd"); // Format the date as YYYY-MM-DD
-        // String formattedDate = formatter.format(today);
-        // formattedDate = formattedDate + ".csv";
-        // csvData = new StringBuilder();
-        // csvData.append("Time,Temperature,Humidity\n");
-        // for (int i = 0; i < 5; i++) {
-        //     csvData.append("1").append(",").append("2").append(",").append("3").append("\n");
-        // }
-        // saveDataToCSV(csvData, formattedDate);
 
         Button saveButton = activity.findViewById(R.id.saveButton);
         saveButton.setOnClickListener(view -> {
@@ -104,16 +109,9 @@ public class ProcessData {
                 throw new RuntimeException(e);
             }
         });
-
-
-        //saveButton.setOnClickListener(view -> {
-        //    try {
-        //        onSaveDataPush();
-        //    } catch (IOException e) {
-        //        throw new RuntimeException(e);
-        //    }
-        //});
     }
+
+
 
     private void prepareChart() {
         ArrayList<ILineDataSet> dataSets = new ArrayList<>();
@@ -144,6 +142,8 @@ public class ProcessData {
         dataSets.add(set3);
         // create a data object with the data sets
         LineData data = new LineData(dataSets);
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setValueFormatter(new MyValueFormatter(chart));
         // set data
         chart.setData(data);
     }
@@ -277,7 +277,7 @@ public class ProcessData {
         map.setMultiTouchControls(true);
         mapController = map.getController();
         mapController.setZoom(16);
-        GeoPoint startPoint = new GeoPoint(48.689199, 9.004848);
+        GeoPoint startPoint = new GeoPoint(48.68920, 9.00481);
         mapController.setCenter(startPoint);
         marker = new Marker(map);
         marker.setPosition(startPoint);
@@ -325,11 +325,15 @@ public class ProcessData {
         String pressure;
     }
 
-    public void processData(String data) {
+    public void processData(String data){
         String[] newData = data.trim().split(";");
         String type = newData[0];
         String val = newData[1];
         String time = newData[2];
+
+        if (convertTimeToSeconds(time) == -1) {
+            return;
+        }
 
         DataPoint dataPoint = dataPointsMap.get(time);
 
@@ -354,27 +358,37 @@ public class ProcessData {
                 addData(chart, outsideVal, time, 0);
                 addData(chart, insideVal, time, 1);
                 dataPoint.out_temp = outsideVal;
-                dataPoint.in_temp = outsideVal;
+                dataPoint.in_temp = insideVal;
                 //addTempData(chart, val, time);
                 break;
             case "hum":
                 dataPoint.hum = val;
+                addHumidity(val);
                 break;
             case "GPS":
                 panToPos(val);
                 String[] GPS = val.split(",");
-                String lat = GPS[1];
-                String longi = GPS[0];
+                String lat = GPS[0];
+                String longi = GPS[1];
                 dataPoint.lat = lat;
                 dataPoint.longi = longi;
                 break;
         }
+        if (dataPointsMap.size() > 100) {
+            try {
+                onSaveDataPush();
+            } catch (Exception ignored) { }
+
+        }
+    }
+
+    private void addHumidity(String val) {
+        humidityText.setText(val);
     }
 
     private void addData(LineChart chart, String receivedData, String time, int idx) {
         float myTime = convertTimeToSeconds(time);
         float pressure = Float.parseFloat(receivedData);
-        xAxisValueList.add(time);
 
         // Get or create the line chart data
         LineData data = chart.getData();
@@ -383,9 +397,6 @@ public class ProcessData {
         data.notifyDataChanged();
         // let the chart know it's data has changed
         chart.notifyDataSetChanged();
-        //chart.setVisibleXRangeMaximum(30);
-        //chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
-        //chart.moveViewToX(data.getDataSetByIndex(0).getEntryCount());
         chart.invalidate();
     }
 
@@ -400,7 +411,6 @@ public class ProcessData {
         data.notifyDataChanged();
         // let the chart know it's data has changed
         chart.notifyDataSetChanged();
-        chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
         chart.setVisibleXRangeMaximum(30);
         chart.moveViewToX(data.getEntryCount());
         chart.invalidate();
@@ -409,7 +419,6 @@ public class ProcessData {
 
     private void addTempData(LineChart chart, String receivedData, String time) {
         // Split the received data into two floats (assuming comma-separated format)
-        xAxisValueList.add(time);
         float myTime = convertTimeToSeconds(time);
         String[] temp = receivedData.split(",");
         float outsideVal = Float.parseFloat(temp[1]);
@@ -424,8 +433,6 @@ public class ProcessData {
         // let the chart know it's data has changed
         chart.notifyDataSetChanged();
 
-
-        chart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(xAxisValueList));
         chart.setVisibleXRangeMaximum(30);
         chart.moveViewToX(data.getEntryCount());
         chart.invalidate();
@@ -456,8 +463,31 @@ public class ProcessData {
         float lat = Float.parseFloat(pos.split(",")[0]);
         float longitude = Float.parseFloat(pos.split(",")[1]);
         GeoPoint startPoint = new GeoPoint(lat, longitude);
+        geoPoints.add(startPoint);
+        map.getOverlayManager().add(line);
         mapController.setCenter(startPoint);
         marker.setPosition(startPoint);
         map.getOverlays().add(marker);
+        map.invalidate();
     }
+
+    public void loadData(ArrayList<String[]> data) {
+        int length = data.size();
+        chart.getData().getDataSetByIndex(0).clear();
+        chart.getData().getDataSetByIndex(1).clear();
+        chart.getData().getDataSetByIndex(2).clear();
+        //Log.d(TAG, String.valueOf(chart.getData().getDataSetByIndex(5)));
+
+        for (int i = 0; i < length; i++) {
+            chart.getData().addEntry(new Entry(i,Float.parseFloat(data.get(i)[0])), 0);
+            chart.getData().addEntry(new Entry(i,Float.parseFloat(data.get(i)[1])), 1);
+        }
+
+
+        chart.notifyDataSetChanged();
+        chart.invalidate();
+        //chart.animateX(2000);
+    }
+
+
 }
