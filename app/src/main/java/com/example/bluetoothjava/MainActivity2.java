@@ -1,8 +1,5 @@
 package com.example.bluetoothjava;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.res.ResourcesCompat;
-
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -11,20 +8,18 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.util.Log;
-import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.res.ResourcesCompat;
 
 import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.components.AxisBase;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-import com.github.mikephil.charting.formatter.IAxisValueFormatter;
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 import org.osmdroid.api.IMapController;
@@ -35,18 +30,16 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.Polyline;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
+
 
 public class MainActivity2 extends AppCompatActivity {
     private LineChart chart;
@@ -55,7 +48,8 @@ public class MainActivity2 extends AppCompatActivity {
     IMapController mapController;
     ArrayList<GeoPoint> geoPoints = new ArrayList<>();
     //add your points here
-    Polyline line = new Polyline();   //see note below!
+    Polyline line = new Polyline();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,11 +68,14 @@ public class MainActivity2 extends AppCompatActivity {
         mapController = map.getController();
         mapController.setZoom(16);
 
+
         Button loadButton = findViewById(R.id.loadButton);
         loadButton.setOnClickListener(view -> chooseFile());
 
         Button returnButton = findViewById(R.id.returnButton);
         returnButton.setOnClickListener(v -> openMainActivity());
+
+
 
     }
 
@@ -141,7 +138,6 @@ public class MainActivity2 extends AppCompatActivity {
         // Read each line of the CSV file and append it to the StringBuilder
         String line;
         while ((line = reader.readLine()) != null) {
-            // Optionally process the line before appending (e.g., parse CSV data)
             data.append(line).append("\n"); // Append line with a newline character
             String[] lineData = line.split(",");
             if (convertTimeToSeconds(lineData[0]) == -1) {
@@ -162,6 +158,10 @@ public class MainActivity2 extends AppCompatActivity {
         }
         // Close the reader
         reader.close();
+
+
+
+
 
         fileData allData = new fileData(tempData, gpsData, humData, pressureData);
 
@@ -210,14 +210,19 @@ public class MainActivity2 extends AppCompatActivity {
         prepareMap(data.gpsData);
     }
 
-    private void prepareMap(ArrayList<String[]> gpsData) {
 
+    private void prepareMap(ArrayList<String[]> gpsData) {
+        geoPoints.clear();
 
         int dataSize = gpsData.size();
 
         for (int i = 0; i < dataSize; i++) {
             geoPoints.add(new GeoPoint(Float.parseFloat(gpsData.get(i)[1]), Float.parseFloat(gpsData.get(i)[2])));
         }
+        //Only start and end points
+        //geoPoints.clear();
+        //geoPoints.add(new GeoPoint(Float.parseFloat(gpsData.get(0)[1]), Float.parseFloat(gpsData.get(0)[2])));
+        //geoPoints.add(new GeoPoint(Float.parseFloat(gpsData.get(dataSize-1)[1]), Float.parseFloat(gpsData.get(dataSize-1)[2])));
 
         createRoad(geoPoints);
 
@@ -259,6 +264,12 @@ public class MainActivity2 extends AppCompatActivity {
         chart.clear();
         XAxis xAxis = chart.getXAxis();
         xAxis.setValueFormatter(new MyValueFormatter(chart));
+
+        MyMarkerView mv = new MyMarkerView(this, R.layout.mymarker);
+
+        // Set the marker to the chart
+        mv.setChartView(chart);
+        chart.setMarker(mv);
 
         ArrayList<ILineDataSet> dataSets = new ArrayList<>();
 
@@ -304,6 +315,14 @@ public class MainActivity2 extends AppCompatActivity {
         LineData finalData = new LineData(dataSets);
         chart.setData(finalData);
 
+        for (ILineDataSet iSet : chart.getData().getDataSets()) {
+
+            LineDataSet set = (LineDataSet) iSet;
+            set.setDrawValues(false);
+            set.setDrawCircles(false);
+        }
+
+        chart.getData().getYMax(YAxis.AxisDependency.LEFT);
 
 
         chart.notifyDataSetChanged();

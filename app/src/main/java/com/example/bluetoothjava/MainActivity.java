@@ -1,18 +1,11 @@
 package com.example.bluetoothjava;
 
-import static com.google.android.material.internal.ContextUtils.getActivity;
-
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.github.mikephil.charting.charts.LineChart;
@@ -21,6 +14,17 @@ import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.views.MapView;
 
+/*
+ TODO:
+    - Luftfeuchtigkeit
+    - Luftdruck
+    - Frosttemperatur
+    - Barom. Druck + normierung
+    - Höheninfo
+    - GPS pos: DONE
+    - Celcius -> Farenheit
+    - Diagramm zu temp: DONE
+ */
 public class MainActivity extends AppCompatActivity {
     private BluetoothService btService;
     private ProcessData processData;
@@ -61,12 +65,7 @@ public class MainActivity extends AppCompatActivity {
         disconnectButton.setOnClickListener(view -> btService.disconnect());
 
         Button loadButton = findViewById(R.id.loadButton);
-        loadButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openActivity2();
-            }
-        });
+        loadButton.setOnClickListener(v -> openActivity2());
     }
 
 

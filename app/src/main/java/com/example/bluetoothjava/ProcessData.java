@@ -1,36 +1,24 @@
 package com.example.bluetoothjava;
 
-import static androidx.core.app.ActivityCompat.startActivityForResult;
-
-import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Environment;
-import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.components.AxisBase;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-import com.github.mikephil.charting.formatter.IAxisValueFormatter;
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 import org.osmdroid.api.IMapController;
@@ -39,7 +27,6 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polyline;
-import org.osmdroid.views.overlay.ScaleBarOverlay;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -50,8 +37,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -105,6 +90,7 @@ public class ProcessData {
         saveButton.setOnClickListener(view -> {
             try {
                 onSaveDataPush();
+                Toast.makeText(activity.getBaseContext(), "File Saved", Toast.LENGTH_LONG).show();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -115,13 +101,15 @@ public class ProcessData {
 
     private void prepareChart() {
         ArrayList<ILineDataSet> dataSets = new ArrayList<>();
-        LineDataSet set1 = new LineDataSet(outsideValues, "outside");
-        LineDataSet set2 = new LineDataSet(insideValues, "inside");
-        LineDataSet set3 = new LineDataSet(pressurevalues, "pressure");
+        LineDataSet set1 = new LineDataSet(outsideValues, "Lufttemperatur");
+        LineDataSet set2 = new LineDataSet(insideValues, "Innentemperatur");
+        LineDataSet set3 = new LineDataSet(pressurevalues, "Luftdruck");
 
         set1.setLineWidth(2.5f);
         set1.setColor(Color.BLUE);
         set1.setCircleColor(Color.BLACK);
+        set1.setDrawCircles(false);
+        set1.setDrawValues(false);
         // line thickness and point size
         //set1.setCircleRadius(3f);
         //set1.setDrawCircleHole(false);
@@ -129,11 +117,15 @@ public class ProcessData {
         set2.setLineWidth(2.5f);
         set2.setColor(Color.RED);
         set2.setCircleColor(Color.BLACK);
+        set2.setDrawCircles(false);
+        set2.setDrawValues(false);
 
         set3.setLineWidth(2.5f);
         set3.setColor(Color.GREEN);
         set3.setAxisDependency(YAxis.AxisDependency.RIGHT);
         set3.setCircleColor(Color.BLACK);
+        set3.setDrawCircles(false);
+        set3.setDrawValues(false);
 
 
 
@@ -144,6 +136,10 @@ public class ProcessData {
         LineData data = new LineData(dataSets);
         XAxis xAxis = chart.getXAxis();
         xAxis.setValueFormatter(new MyValueFormatter(chart));
+        MyMarkerView mv = new MyMarkerView(chart.getContext(), R.layout.mymarker);
+        // Set the marker to the chart
+        mv.setChartView(chart);
+        chart.setMarker(mv);
         // set data
         chart.setData(data);
     }
@@ -388,12 +384,12 @@ public class ProcessData {
 
     private void addData(LineChart chart, String receivedData, String time, int idx) {
         float myTime = convertTimeToSeconds(time);
-        float pressure = Float.parseFloat(receivedData);
+        float value = Float.parseFloat(receivedData);
 
         // Get or create the line chart data
         LineData data = chart.getData();
         // Get the existing datasets from the LineData
-        data.addEntry(new Entry(myTime, pressure), idx);
+        data.addEntry(new Entry(myTime, value), idx);
         data.notifyDataChanged();
         // let the chart know it's data has changed
         chart.notifyDataSetChanged();
@@ -489,5 +485,17 @@ public class ProcessData {
         //chart.animateX(2000);
     }
 
+    private float norm_bar_druck(float altitude) {
+        float p_0 = 1013.25f;
+        float temp = 0.0065f * altitude / 288.15f;
+
+        return p_0 * (float) Math.pow((1- temp), 5.255f);
+    }
+
+    float dew_point(float temp_degree, float rel_hum) {
+        return temp_degree - (100 - rel_hum) / 5;
+    }
+
+    float degree_to_kelvin(float temp_degree) {return temp_degree + 273.15f;}
 
 }
