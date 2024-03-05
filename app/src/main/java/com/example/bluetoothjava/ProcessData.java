@@ -13,13 +13,23 @@ import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.ekn.gruzer.gaugelibrary.ArcGauge;
+import com.ekn.gruzer.gaugelibrary.Range;
+import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.highlight.Highlight;
+import com.github.mikephil.charting.interfaces.datasets.IBarDataSet;
+import com.github.mikephil.charting.interfaces.datasets.IDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 
 import org.osmdroid.api.IMapController;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -48,6 +58,10 @@ public class ProcessData {
 
     private LineChart chart;
     private MapView map;
+    private ArcGauge humGauge;
+    private BarChart humBarChart;
+    private BarChart pressureBarChart;
+    private BarDataSet barSet;
     private List<GeoPoint> geoPoints = new ArrayList<>();
     Polyline line = new Polyline();
     private IMapController mapController;
@@ -69,8 +83,9 @@ public class ProcessData {
         this.chart = chart;
         this.activity = activity;
         this.map = map;
-
-        humidityText = activity.findViewById(R.id.humidity);
+        this.humGauge = activity.findViewById(R.id.humGauge);
+        this.humBarChart = activity.findViewById(R.id.barChart);
+        this.pressureBarChart = activity.findViewById(R.id.barChart2);
 
         //Chart stuff
         prepareChart();
@@ -83,6 +98,9 @@ public class ProcessData {
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE
         });
         prepareMap();
+        prepareGauge();
+        prepareBarChart(humBarChart, "Humidity", 40, 60, Color.parseColor("#33ccff"));
+        prepareBarChart(pressureBarChart, "Pressure",950, 1050, Color.GREEN);
 
         today = new Date();
 
@@ -97,6 +115,37 @@ public class ProcessData {
         });
     }
 
+    private void prepareBarChart(BarChart barChart, String label, float min, float max, int color) {
+        barChart.getAxis(YAxis.AxisDependency.LEFT).setAxisMinimum(min);
+        barChart.getAxis(YAxis.AxisDependency.LEFT).setAxisMaximum(max);
+        barChart.getAxis(YAxis.AxisDependency.LEFT).setLabelCount(5, true);
+        barChart.getAxis(YAxis.AxisDependency.RIGHT).setEnabled(false);
+        barChart.getAxis(YAxis.AxisDependency.LEFT).setDrawAxisLine(false);
+        ArrayList<BarEntry> val = new ArrayList<BarEntry>();
+        barSet = new BarDataSet(val, label);
+        barSet.setColor(color);
+        barSet.setDrawValues(false);
+        barChart.setPinchZoom(false);
+
+        ArrayList<IBarDataSet> dataSets = new ArrayList<>();
+        dataSets.add(barSet);
+        BarData data = new BarData(dataSets);
+        barChart.setData(data);
+        barChart.setFitBars(true);
+        barChart.getDescription().setEnabled(false);
+        barChart.getXAxis().setEnabled(false);
+        barChart.invalidate();
+    }
+
+    private void prepareGauge() {
+        humGauge.setMaxValue(60);
+        humGauge.setMinValue(40);
+        Range range = new Range();
+        range.setFrom(40);
+        range.setTo(60);
+        range.setColor(Color.parseColor("#33ccff"));
+        humGauge.addRange(range);
+    }
 
 
     private void prepareChart() {
@@ -137,10 +186,44 @@ public class ProcessData {
         XAxis xAxis = chart.getXAxis();
         xAxis.setValueFormatter(new MyValueFormatter(chart));
         MyMarkerView mv = new MyMarkerView(chart.getContext(), R.layout.mymarker);
-        // Set the marker to the chart
         mv.setChartView(chart);
         chart.setMarker(mv);
+        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
+            @Override
+            public void onValueSelected(Entry e, Highlight h) {
+
+                //Highlight highlight[] = new Highlight[chart.getData().getDataSets().size()];
+                int foundVals = 0;
+                ArrayList<Highlight> highlights = new ArrayList<>();
+                for (int j = 0; j < chart.getData().getDataSets().size(); j++) {
+
+                    IDataSet<Entry> iDataSet = chart.getData().getDataSets().get(j);
+
+
+                    for (int i = 0; i < ((LineDataSet) iDataSet).getValues().size(); i++) {
+                        try {
+                            if (((LineDataSet) iDataSet).getValues().get(i).getX() == e.getX()) {
+                                //highlight[j] = new Highlight(e.getX(), e.getY(), j);
+                                highlights.add(new Highlight(e.getX(), e.getY(), j));
+                                foundVals += 1;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+
+                }
+                Highlight highlight[] = new Highlight[foundVals];
+                for (int i = 0; i < foundVals; i++) {
+                    highlight[i] = highlights.get(i);
+                }
+                chart.highlightValues(highlight);
+            }
+
+            @Override
+            public void onNothingSelected() {
+            }
+        });
         // set data
+        chart.getAxis(YAxis.AxisDependency.RIGHT).enableGridDashedLine(10f, 10f, 10f);
         chart.setData(data);
     }
 
@@ -345,6 +428,7 @@ public class ProcessData {
                 addData(chart, val, time, 2);
                 //addPressureData(chart, val, time);
                 dataPoint.pressure = val;
+                addChartValue(pressureBarChart, val);
                 break;
             case "temp":
                 //chart2.clear();
@@ -379,7 +463,23 @@ public class ProcessData {
     }
 
     private void addHumidity(String val) {
-        humidityText.setText(val);
+        humGauge.setValue(Double.parseDouble(val));
+        addChartValue(humBarChart, val);
+    }
+
+    private void addChartValue(BarChart barChart, String val) {
+        ArrayList<BarEntry> vals = new ArrayList<BarEntry>();
+        vals.add(new BarEntry(0, Float.parseFloat(val)));
+        String label = barChart.getData().getDataSetByIndex(0).getLabel();
+        int color = barChart.getData().getDataSetByIndex(0).getColor();
+        barChart.getData().clearValues();
+        barSet = new BarDataSet(vals, label);
+        barSet.setColor(color);
+        ArrayList<IBarDataSet> dataSets = new ArrayList<>();
+        dataSets.add(barSet);
+        BarData data = new BarData(dataSets);
+        barChart.setData(data);
+        barChart.invalidate();
     }
 
     private void addData(LineChart chart, String receivedData, String time, int idx) {

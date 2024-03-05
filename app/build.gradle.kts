@@ -43,4 +43,7 @@ dependencies {
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("com.github.MKergall:osmbonuspack:6.9.0")
+    implementation("com.github.Gruzer:simple-gauge-android:0.3.1")
+    implementation("com.opencsv:opencsv:5.9")
+    implementation("com.github.salehyarahmadi:DataTable:v1.0.1")
 }

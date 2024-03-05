@@ -1,8 +1,11 @@
 package com.example.bluetoothjava;
 
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
@@ -22,7 +25,6 @@ public class BluetoothService {
     ConnectThread connectThread;
     private BluetoothAdapter bluetoothAdapter;
     private MainActivity activity;
-    private static final int REQUEST_ENABLE_BT = 1;
 
     public BluetoothService(MainActivity activity, ProcessData processData) {
         this.activity = activity;

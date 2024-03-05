@@ -8,8 +8,9 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.util.Log;
-import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ScrollView;
+import android.widget.TableLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.res.ResourcesCompat;
@@ -20,7 +21,10 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.highlight.Highlight;
+import com.github.mikephil.charting.interfaces.datasets.IDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.routing.OSRMRoadManager;
@@ -30,7 +34,6 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
-import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.Polyline;
 
 import java.io.BufferedReader;
@@ -39,6 +42,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Objects;
+
+import ir.androidexception.datatable.DataTable;
+import ir.androidexception.datatable.model.DataTableHeader;
+import ir.androidexception.datatable.model.DataTableRow;
 
 
 public class MainActivity2 extends AppCompatActivity {
@@ -125,7 +132,7 @@ public class MainActivity2 extends AppCompatActivity {
         // Open an input stream
         InputStream inputStream = getContentResolver().openInputStream(selectedFileUri);
         // Create a StringBuilder to store the data
-        StringBuilder data = new StringBuilder();
+        ArrayList<String[]> data = new ArrayList<>();
         ArrayList<String[]> tempData = new ArrayList<String[]>();
         ArrayList<String[]> gpsData = new ArrayList<String[]>();
         ArrayList<String[]> humData = new ArrayList<String[]>();
@@ -133,12 +140,13 @@ public class MainActivity2 extends AppCompatActivity {
         // Create a BufferedReader for efficient reading
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         if (reader.ready()) { // Check if there's data available
-            reader.readLine(); // Skip the first line
+            //reader.readLine(); // Skip the first line
+            data.add(reader.readLine().split(","));
         }
         // Read each line of the CSV file and append it to the StringBuilder
         String line;
         while ((line = reader.readLine()) != null) {
-            data.append(line).append("\n"); // Append line with a newline character
+            data.add(line.split(",")); // Append line with a newline character
             String[] lineData = line.split(",");
             if (convertTimeToSeconds(lineData[0]) == -1) {
                 continue;
@@ -167,8 +175,47 @@ public class MainActivity2 extends AppCompatActivity {
 
 
         loadData(allData);
-        // Now the 'data' variable contains all the file content
-        // Use it for further processing or storing as needed
+
+        // CSVParser parser = new CSVParser(this);
+        // TableLayout table = findViewById(R.id.table);
+        // ScrollView scrollView = findViewById(R.id.scrollView);
+        // parser.populateTable(data, table);
+
+        prepareTable(data);
+    }
+
+    private void prepareTable(ArrayList<String[]> data) {
+        DataTable dataTable = findViewById(R.id.data_table);
+        String[] headers = data.get(0);
+        DataTableHeader header = new DataTableHeader.Builder()
+                .item(headers[0], 1)
+                .item(headers[1], 1)
+                .item(headers[2], 1)
+                .item(headers[3], 1)
+                .item(headers[4], 1)
+                .item(headers[5], 1)
+                .item(headers[6], 1)
+                .build();
+
+        ArrayList<DataTableRow> rows = new ArrayList<>();
+        // define 200 fake rows for table
+        for(int i=1;i<data.size();i++) {
+            String[] dataLine = data.get(i);
+            DataTableRow row = new DataTableRow.Builder()
+                    .value(dataLine[0])
+                    .value(dataLine[1])
+                    .value(dataLine[2])
+                    .value(dataLine[3])
+                    .value(dataLine[4])
+                    .value(dataLine[5])
+                    .value(dataLine[6])
+                    .build();
+            rows.add(row);
+        }
+
+        dataTable.setHeader(header);
+        dataTable.setRows(rows);
+        dataTable.inflate(this);
     }
 
     private static int convertTimeToSeconds(String timeStr) {
@@ -266,10 +313,42 @@ public class MainActivity2 extends AppCompatActivity {
         xAxis.setValueFormatter(new MyValueFormatter(chart));
 
         MyMarkerView mv = new MyMarkerView(this, R.layout.mymarker);
-
-        // Set the marker to the chart
         mv.setChartView(chart);
         chart.setMarker(mv);
+        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
+            @Override
+            public void onValueSelected(Entry e, Highlight h) {
+
+                //Highlight highlight[] = new Highlight[chart.getData().getDataSets().size()];
+                int foundVals = 0;
+                ArrayList<Highlight> highlights = new ArrayList<>();
+                for (int j = 0; j < chart.getData().getDataSets().size(); j++) {
+
+                    IDataSet<Entry> iDataSet = chart.getData().getDataSets().get(j);
+
+
+                    for (int i = 0; i < ((LineDataSet) iDataSet).getValues().size(); i++) {
+                        try {
+                            if (((LineDataSet) iDataSet).getValues().get(i).getX() == e.getX()) {
+                                //highlight[j] = new Highlight(e.getX(), e.getY(), j);
+                                highlights.add(new Highlight(e.getX(), e.getY(), j));
+                                foundVals += 1;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+
+                }
+                Highlight highlight[] = new Highlight[foundVals];
+                for (int i = 0; i < foundVals; i++) {
+                    highlight[i] = highlights.get(i);
+                }
+                chart.highlightValues(highlight);
+            }
+
+            @Override
+            public void onNothingSelected() {
+            }
+        });
 
         ArrayList<ILineDataSet> dataSets = new ArrayList<>();
 

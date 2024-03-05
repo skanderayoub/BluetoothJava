@@ -61,28 +61,6 @@
         app:layout_constraintBottom_toTopOf="@+id/chart2"
         app:layout_constraintStart_toEndOf="@+id/disconnectButton" />
 
-    <TextView
-        android:id="@+id/textViewWithBorder"
-        android:layout_width="251dp"
-        android:layout_height="290dp"
-        android:layout_marginTop="20dp"
-        android:background="@drawable/black_box_background"
-        android:text="Humidity:"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/map"
-        app:layout_constraintTop_toBottomOf="@+id/chart2" />
-
-    <TextView
-        android:id="@+id/humidity"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="-"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/textViewWithBorder"
-        app:layout_constraintStart_toEndOf="@+id/map"
-        app:layout_constraintTop_toTopOf="@+id/textViewWithBorder"
-        android:textSize="50sp"/>
-
     <Button
         android:id="@+id/loadButton"
         android:layout_width="wrap_content"
@@ -92,5 +70,44 @@
         android:text="Load Data"
         app:layout_constraintBottom_toTopOf="@+id/chart2"
         app:layout_constraintStart_toEndOf="@+id/disconnectButton" />
+
+    <com.ekn.gruzer.gaugelibrary.ArcGauge
+        android:id="@+id/humGauge"
+        android:layout_width="254dp"
+        android:layout_height="279dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toEndOf="@+id/map"
+        app:layout_constraintTop_toBottomOf="@+id/chart2"
+        app:layout_constraintVertical_bias="1.0">
+
+    </com.ekn.gruzer.gaugelibrary.ArcGauge>
+
+    <com.github.mikephil.charting.charts.BarChart
+        android:id="@+id/barChart"
+        android:layout_width="113dp"
+        android:layout_height="287dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toEndOf="@+id/map"
+        app:layout_constraintTop_toBottomOf="@+id/chart2"
+        app:layout_constraintVertical_bias="1.0">
+
+    </com.github.mikephil.charting.charts.BarChart>
+
+    <com.github.mikephil.charting.charts.BarChart
+        android:id="@+id/barChart2"
+        android:layout_width="113dp"
+        android:layout_height="287dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.294"
+        app:layout_constraintStart_toEndOf="@+id/map"
+        app:layout_constraintTop_toBottomOf="@+id/chart2"
+        app:layout_constraintVertical_bias="1.0">
+
+    </com.github.mikephil.charting.charts.BarChart>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
