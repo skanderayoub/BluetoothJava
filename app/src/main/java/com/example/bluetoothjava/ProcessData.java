@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class ProcessData {
@@ -409,6 +410,9 @@ public class ProcessData {
         String type = newData[0];
         String val = newData[1];
         String time = newData[2];
+        SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        String currentTime = df.format(new Date());
+        time = currentTime;
 
         if (convertTimeToSeconds(time) == -1) {
             return;
