@@ -45,8 +45,8 @@ public class MainActivity extends AppCompatActivity {
         Context ctx = getApplicationContext();
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
 
-        MapView map = (MapView) findViewById(R.id.map);
-        map.setTileSource(TileSourceFactory.MAPNIK);
+        //MapView map = (MapView) findViewById(R.id.map);
+        //map.setTileSource(TileSourceFactory.MAPNIK);
 
         LineChart chart = findViewById(R.id.chart2);
         chart.getDescription().setEnabled(false);
@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
         // force pinch zoom along both axis
         //chart.setPinchZoom(true);
 
-        processData = new ProcessData(this, chart, map);
+        processData = new ProcessData(this, chart);
         btService = new BluetoothService(this, processData);
 
 

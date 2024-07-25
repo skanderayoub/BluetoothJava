@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -47,6 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -73,23 +75,52 @@ public class ProcessData {
     private File mainFile;
     private List<DataPoint> dataPoints = new ArrayList<>();
     private Map<String, DataPoint> dataPointsMap = new HashMap<>(); // Use HashMap or other Map implementation
-
-    private TextView humidityText;
+    private TextView tempText;
+    private boolean isCelsius = true; // Flag to track current unit
+    private TextView humText;
+    private TextView pressText;
+    private TextView latText;
+    private TextView longText;
 
     ArrayList<Entry> outsideValues = new ArrayList<>();
     ArrayList<Entry> insideValues = new ArrayList<>();
     ArrayList<Entry> pressurevalues = new ArrayList<>();
 
-    public ProcessData(MainActivity activity, LineChart chart, MapView map) {
+    public ProcessData(MainActivity activity, LineChart chart) {
         this.chart = chart;
         this.activity = activity;
-        this.map = map;
-        this.humGauge = activity.findViewById(R.id.humGauge);
-        this.humBarChart = activity.findViewById(R.id.barChart);
-        this.pressureBarChart = activity.findViewById(R.id.barChart2);
+
+        tempText = activity.findViewById(R.id.tempTextView);
+        humText = activity.findViewById(R.id.humTextView);
+        pressText = activity.findViewById(R.id.pressureTextView);
+        latText = activity.findViewById(R.id.latTextView);
+        longText = activity.findViewById(R.id.longTextView);
+        //tempText.setOnClickListener(view -> {
+        //    convertTemp(currentTemp);
+        //});
 
         //Chart stuff
         prepareChart();
+
+        tempText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String currentTemp = tempText.getText().toString();
+                float temperature = Float.parseFloat(currentTemp.substring(0, currentTemp.length() - 2)); // Extract temperature value
+
+                if (isCelsius) {
+                    // Convert to Fahrenheit
+                    float fahrenheit = temperature * 9 / 5 + 32;
+                    tempText.setText(new DecimalFormat("0.0").format(fahrenheit) + "°F");
+                } else {
+                    // Convert to Celsius
+                    float celsius = (temperature - 32) * 5 / 9;
+                    tempText.setText(new DecimalFormat("0.0").format(celsius) + "°C");
+                }
+
+                isCelsius = !isCelsius;
+            }
+        });
 
         //Map stuff
         requestPermissionsIfNecessary(new String[]{
@@ -98,10 +129,10 @@ public class ProcessData {
                 // WRITE_EXTERNAL_STORAGE is required in order to show the map
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE
         });
-        prepareMap();
-        prepareGauge();
-        prepareBarChart(humBarChart, "Humidity", 40, 60, Color.parseColor("#33ccff"));
-        prepareBarChart(pressureBarChart, "Pressure",950, 1050, Color.GREEN);
+        //prepareMap();
+        //prepareGauge();
+        //prepareBarChart(humBarChart, "Humidity", 40, 60, Color.parseColor("#33ccff"));
+        //prepareBarChart(pressureBarChart, "Pressure",950, 1050, Color.GREEN);
 
         today = new Date();
 
@@ -411,8 +442,7 @@ public class ProcessData {
         String val = newData[1];
         String time = newData[2];
         SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-        String currentTime = df.format(new Date());
-        time = currentTime;
+        time = df.format(new Date());
 
         if (convertTimeToSeconds(time) == -1) {
             return;
@@ -430,9 +460,10 @@ public class ProcessData {
         switch (type) {
             case "pressure":
                 addData(chart, val, time, 2);
+                setTextToView(pressText, val);
                 //addPressureData(chart, val, time);
                 dataPoint.pressure = val;
-                addChartValue(pressureBarChart, val);
+                //addChartValue(pressureBarChart, val);
                 break;
             case "temp":
                 //chart2.clear();
@@ -443,19 +474,33 @@ public class ProcessData {
                 addData(chart, insideVal, time, 1);
                 dataPoint.out_temp = outsideVal;
                 dataPoint.in_temp = insideVal;
+                setTempText(outsideVal);
                 //addTempData(chart, val, time);
                 break;
             case "hum":
                 dataPoint.hum = val;
-                addHumidity(val);
+                setTextToView(humText, val);
+                //addHumidity(val);
                 break;
             case "GPS":
-                panToPos(val);
+                //panToPos(val);
                 String[] GPS = val.split(",");
                 String lat = GPS[0];
                 String longi = GPS[1];
                 dataPoint.lat = lat;
                 dataPoint.longi = longi;
+                setTextToView(latText, lat.substring(0, 8));
+                setTextToView(longText, longi.substring(0,8));
+                break;
+            case "hum_press":
+                String[] sens_data = val.split(",");
+                String hum = sens_data[0];
+                String press = sens_data[1];
+                dataPoint.hum = hum;
+                dataPoint.pressure = press;
+                setTextToView(humText, hum);
+                setTextToView(pressText, press);
+                addData(chart, press, time, 2);
                 break;
         }
         if (dataPointsMap.size() > 100) {
@@ -466,9 +511,22 @@ public class ProcessData {
         }
     }
 
-    private void addHumidity(String val) {
-        humGauge.setValue(Double.parseDouble(val));
-        addChartValue(humBarChart, val);
+    private void setTextToView(TextView textView, String val) {
+        textView.setText(val);
+    }
+
+    public void setTempText(String outsideVal) {
+        DecimalFormat decfor = new DecimalFormat("0.0");
+        float temp;
+
+        if (isCelsius) {
+            temp = Float.parseFloat(outsideVal);
+        } else {
+            temp = Float.parseFloat(outsideVal) * 9 / 5 + 32; // Convert Fahrenheit to Celsius for internal storage
+        }
+
+        String temperature = decfor.format(temp);
+        tempText.setText(temperature + (isCelsius ? "°C" : "°F"));
     }
 
     private void addChartValue(BarChart barChart, String val) {
