@@ -88,6 +88,7 @@ public class MainActivity2 extends AppCompatActivity {
 
     private void openMainActivity() {
         Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(intent);
     }
 
@@ -161,7 +162,7 @@ public class MainActivity2 extends AppCompatActivity {
                 humData.add(new String[]{lineData[0], lineData[5]});
             }
             if (!Objects.equals(lineData[6], "null")) {
-                pressureData.add(new String[]{lineData[0], lineData[6]});
+                pressureData.add(new String[]{lineData[0], lineData[7]});
             }
         }
         // Close the reader
@@ -195,6 +196,7 @@ public class MainActivity2 extends AppCompatActivity {
                 .item(headers[4], 1)
                 .item(headers[5], 1)
                 .item(headers[6], 1)
+                .item(headers[7], 1)
                 .build();
 
         ArrayList<DataTableRow> rows = new ArrayList<>();
@@ -209,6 +211,7 @@ public class MainActivity2 extends AppCompatActivity {
                     .value(dataLine[4])
                     .value(dataLine[5])
                     .value(dataLine[6])
+                    .value(dataLine[7])
                     .build();
             rows.add(row);
         }

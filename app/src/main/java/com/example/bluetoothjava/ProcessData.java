@@ -72,6 +72,7 @@ public class ProcessData {
     private MainActivity activity;
     private StringBuilder csvData = new StringBuilder();
     private Date today;
+    private String year_month_day;
     private File mainFile;
     private List<DataPoint> dataPoints = new ArrayList<>();
     private Map<String, DataPoint> dataPointsMap = new HashMap<>(); // Use HashMap or other Map implementation
@@ -263,6 +264,7 @@ public class ProcessData {
         // Create the complete path with dynamic date components
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MM/dd"); // Format the date as YYYY-MM-DD
         String formattedDate = formatter.format(today);
+        formattedDate = year_month_day;
         String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 + File.separator + formattedDate + ".csv";
         // Create a File object
@@ -283,6 +285,7 @@ public class ProcessData {
                     append(dataPoint.in_temp).append(",").
                     append(dataPoint.lat).append(",").
                     append(dataPoint.longi).append(",").
+                    append(dataPoint.alti).append(",").
                     append(dataPoint.hum).append(",").
                     append(dataPoint.pressure).append("\n");
         }
@@ -299,7 +302,7 @@ public class ProcessData {
                 // Create the parent directory and any intermediate directories
                 parentDir.mkdirs(); // Creates all non-existent parent directories
             }
-            csvData.insert(0, "time,outside_temp,inside_temp,latitude,longitude,hum,pressure\n");
+            csvData.insert(0, "time,outside_temp,inside_temp,latitude,longitude,altitude,hum,pressure\n");
         }
 
         try {
@@ -432,6 +435,7 @@ public class ProcessData {
         String in_temp;
         String lat;
         String longi;
+        String alti;
         String hum;
         String pressure;
     }
@@ -440,9 +444,12 @@ public class ProcessData {
         String[] newData = data.trim().split(";");
         String type = newData[0];
         String val = newData[1];
-        String time = newData[2];
-        SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-        time = df.format(new Date());
+        String[] timeAndDate = newData[2].split("-");
+        String time = timeAndDate[1];
+        year_month_day = timeAndDate[0];
+
+        //SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        //time = df.format(new Date());
 
         if (convertTimeToSeconds(time) == -1) {
             return;
@@ -484,13 +491,20 @@ public class ProcessData {
                 break;
             case "GPS":
                 //panToPos(val);
-                String[] GPS = val.split(",");
-                String lat = GPS[0];
-                String longi = GPS[1];
-                dataPoint.lat = lat;
-                dataPoint.longi = longi;
-                setTextToView(latText, lat.substring(0, 8));
-                setTextToView(longText, longi.substring(0,8));
+                try {
+                    String[] GPS = val.split(",");
+                    String lat = GPS[0];
+                    String longi = GPS[1];
+                    String alti = GPS[2];
+                    Log.d("GPS", lat);
+                    Log.d("GPS", longi);
+                    Log.d("GPS", alti);
+                    dataPoint.lat = lat;
+                    dataPoint.longi = longi;
+                    dataPoint.alti = alti;
+                    setTextToView(latText, lat.substring(0, 8));
+                    setTextToView(longText, longi.substring(0, 8));
+                } catch (Exception exception) {}
                 break;
             case "hum_press":
                 String[] sens_data = val.split(",");
