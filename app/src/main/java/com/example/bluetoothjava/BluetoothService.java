@@ -168,7 +168,11 @@ public class BluetoothService {
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         if (pairedDevices != null) {
             for (BluetoothDevice device : pairedDevices) {
-                if (device.getAddress().equals("B8:27:EB:AB:C5:BC")) {
+                // B8:27:EB:AB:C5:BC (Raspi3 Daniel)
+                // E4:5F:01:1D:08:1D (Raspi4 Skander)
+                String DanielIP = "B8:27:EB:AB:C5:BC";
+                String SkanderIP = "E4:5F:01:1D:08:1D";
+                if (device.getAddress().equals(DanielIP) || device.getAddress().equals(SkanderIP)) {
                     connectToDevice(device);
                     break;
                 }
